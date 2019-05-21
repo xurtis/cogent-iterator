@@ -1,0 +1,76 @@
+-- The external environment
+type Env
+
+show_u32 : (Env, U32) -> Env
+show_string : (Env, String) -> Env
+malloc : all (a) . Env -> (Env, a)
+free : all (a) . (Env, a) -> Env
+
+newline : Env -> Env
+newline env = show_string(env, "")
+
+-- An iterator
+
+type IterStep a = a -> a
+type IterCond = <Continue | Stop>
+type IterContinue a = a! -> IterCond
+
+type Iterator a =
+  { curr : a
+  , step : IterStep a
+  , complete: IterContinue a
+  }
+
+exec : all (a) . Iterator a -> a
+
+-- A FizzBuzz iterator
+fizzbuzz : Env -> Iterator (Env, U32)
+fizzbuzz env =
+  let (env, iter) : (Env, (Iterator (Env, U32)) take (..))
+    = malloc env
+  and curr : (Env, U32)
+    = (env, 1)
+  and step : IterStep (Env, U32)
+    = \(env, n) =>
+      let env = if
+        | (n % 3 == 0) && (n % 5 == 0) -> show_string (env, "FizzBuzz")
+        | (n % 3 == 0)                 -> show_string (env, "Fizz")
+        | (n % 5 == 0)                 -> show_string (env, "Buzz")
+        | else                         -> show_u32    (env, n)
+       in (env, n + 1)
+  and complete : IterContinue (Env, U32)
+    = \(env, n) =>
+      if n <= 20 then Continue else Stop
+   in iter { curr, step, complete }
+
+-- An iterator over the fibbonaci sequence
+type Fib = { p1 : U32, p2 : U32 }
+
+fib : Env -> Iterator (Env, Fib)
+fib env =
+  let (env, iter) : (Env, (Iterator (Env, Fib)) take (..))
+    = malloc env
+  and (env, curr) : (Env, Fib take (..))
+    = malloc env
+  and curr : (Env, Fib)
+    = (env, curr { p1 = 1, p2 = 0 })
+  and step : IterStep (Env, Fib)
+    = \(env, curr) =>
+      let curr { p1, p2 } = curr
+      and env = show_u32 (env, p1)
+      and n = p1 + p2
+       in (env, curr { p1 = n, p2 = p1 })
+  and complete : IterContinue (Env, Fib)
+    = \(_, fib) =>
+      if fib.p1 < 1000 then Continue else Stop
+   in iter { curr, step, complete }
+
+prog : Env -> Env
+prog env =
+  let env = show_string (env, "FizzBuzz:")
+  and (env, _) = exec (fizzbuzz env)
+  and env = newline env
+  and env = show_string (env, "Fibonacci sequence:")
+  and env = free (exec (fib env))
+  and env = newline env
+   in show_string (env, "Done!")

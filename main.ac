@@ -1,0 +1,52 @@
+$esc:(#include <stdlib.h>)
+$esc:(#include <stdio.h>)
+
+typedef void *Env;
+
+#include "generated.c"
+
+$ty:((Env, a)) $id:malloc ($ty:(Env) env) {
+	$ty:(a) val = malloc(sizeof (*val));
+	$ty:((Env, a)) ret = {
+		.p1 = env,
+		.p2 = val,
+	};
+	return ret;
+}
+
+$ty:(Env) $id:free ($ty:((Env, a)) args) {
+	free(args.p2);
+	return args.p1;
+}
+
+$ty:(a) $id:exec ($ty:(Iterator a) iter) {
+	$ty:(a) curr = iter->curr;
+	$ty:(IterCond) proceed;
+
+	proceed = (($spec:(IterContinue a)) iter->complete) (curr);
+	while (proceed.tag == TAG_ENUM_Continue) {
+		curr = (($spec:(IterStep a)) iter->step) (curr);
+		proceed = (($spec:(IterContinue a)) iter->complete) (curr);
+	}
+
+	/* Free the iterator */
+	free(iter);
+
+	return curr;
+}
+
+$ty:(Env) show_u32 ($ty:((Env, U32)) args) {
+	printf("%d\n", args.p2);
+	return args.p1;
+}
+
+$ty:(Env) show_string ($ty:((Env, String)) args) {
+	printf("%s\n", args.p2);
+	return args.p1;
+}
+
+int main(void) {
+	$ty:(Env) env;
+	env = $esc:prog(env);
+	return 0;
+}
